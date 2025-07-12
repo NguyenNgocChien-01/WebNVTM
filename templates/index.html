@@ -1,0 +1,166 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Home | Mantis Bootstrap 5 Admin Template</title>
+  <!-- [Meta] -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0, minimal-ui">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="description" content="Mantis is made using Bootstrap 5 design framework.">
+  <meta name="keywords" content="Mantis, Dashboard UI Kit, Bootstrap 5, Admin Template">
+  <meta name="author" content="CodedThemes">
+
+  <!-- [Favicon] icon -->
+  <link rel="icon" href="{% static 'images/favicon.svg' %}" type="image/x-icon">
+  
+  <!-- [Google Font] Family -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700&display=swap" id="main-font-link">
+  
+  <!-- [Tabler Icons] -->
+  <link rel="stylesheet" href="{% static 'fonts/tabler-icons.min.css' %}">
+  
+  <!-- [Feather Icons] -->
+  <link rel="stylesheet" href="{% static 'fonts/feather.css' %}">
+  
+  <!-- [Font Awesome Icons] -->
+  <link rel="stylesheet" href="{% static 'fonts/fontawesome.css' %}">
+  
+  <!-- [Material Icons] -->
+  <link rel="stylesheet" href="{% static 'fonts/material.css' %}">
+  
+  <!-- [Template CSS Files] -->
+  <link rel="stylesheet" href="{% static 'css/style.css' %}" id="main-style-link">
+  <link rel="stylesheet" href="{% static 'css/style-preset.css' %}">
+
+  <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}" id="main-style-link">
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+  <link rel="stylesheet" href="{% static 'css/sty.css' %}">
+  <link rel="stylesheet" href="{% static 'css/style-preset.css' %}">
+  <style>
+    /* ... các style khác của bạn ... */
+    
+    .card-body img { 
+        max-width: 100%;  /* Quan trọng: Chiều rộng tối đa là 100% của khung chứa */
+        height: auto;     /* Quan trọng: Chiều cao tự động điều chỉnh theo tỷ lệ */
+        border-radius: 4px; 
+    }
+
+    /* ... */
+</style>
+</head>
+<!-- [Head] end -->
+<!-- [Body] Start -->
+
+<body data-pc-preset="preset-1" data-pc-direction="ltr" data-pc-theme="light">
+  <!-- [ Pre-loader ] start -->
+<div class="loader-bg">
+  <div class="loader-track">
+    <div class="loader-fill"></div>
+  </div>
+</div>
+<!-- [ Pre-loader ] End -->
+ <!-- [ Sidebar Menu ] start -->
+<nav class="pc-sidebar">
+  <div class="navbar-wrapper">
+    <div class="m-header">
+      <a href="../dashboard/index.html" class="b-brand text-primary">
+        <!-- ========   Change your logo from here   ============ -->
+        <img src="../assets/images/logo-dark.svg" class="img-fluid logo-lg" alt="logo">
+      </a>
+    </div>
+    <div class="navbar-content">
+      <ul class="pc-navbar">
+        <li class="pc-item">
+          <a href="{% url 'test'%}" class="pc-link">
+            <span class="pc-micon"><i class="ti ti-dashboard"></i></span>
+            <span class="pc-mtext">Ảnh trên tập Test</span>
+          </a>
+        </li>
+
+            <li class="pc-item">
+          <a href="{% url 'real' %}" class="pc-link">
+            <span class="pc-micon"><i class="ti ti-dashboard"></i></span>
+            <span class="pc-mtext">Ảnh thật</span>
+          </a>
+        </li>
+
+
+  </div>
+</nav>
+<!-- [ Sidebar Menu ] end --> <!-- [ Header Topbar ] start -->
+<header class="pc-header">
+  <div class="header-wrapper"> <!-- [Mobile Media Block] start -->
+<div class="me-auto pc-mob-drp">
+  <ul class="list-unstyled">
+    <!-- ======= Menu collapse Icon ===== -->
+    <li class="pc-h-item pc-sidebar-collapse">
+      <a href="#" class="pc-head-link ms-0" id="sidebar-hide">
+        <i class="ti ti-menu-2"></i>
+      </a>
+    </li>
+    <li class="pc-h-item pc-sidebar-popup">
+      <a href="#" class="pc-head-link ms-0" id="mobile-collapse">
+        <i class="ti ti-menu-2"></i>
+      </a>
+    </li>
+    <li class="dropdown pc-h-item d-inline-flex d-md-none">
+      <a
+        class="pc-head-link dropdown-toggle arrow-none m-0"
+        data-bs-toggle="dropdown"
+        href="#"
+        role="button"
+        aria-haspopup="false"
+        aria-expanded="false"
+      >
+        <i class="ti ti-search"></i>
+      </a>
+      <div class="dropdown-menu pc-h-dropdown drp-search">
+        <form class="px-3">
+          <div class="form-group mb-0 d-flex align-items-center">
+            <i data-feather="search"></i>
+            <input type="search" class="form-control border-0 shadow-none" placeholder="Search here. . .">
+          </div>
+        </form>
+      </div>
+    </li>
+    <li class="pc-h-item d-none d-md-inline-flex">
+
+    </li>
+  </ul>
+</div>
+
+
+
+</header>
+<!-- [ Header ] end -->
+<main>
+{% block content %}
+        <!-- Nội dung mặc định -->
+        <p>Chào mừng đến với nhóm chúng tôi</p>
+{% endblock %}
+</main>
+
+
+  <footer class="pc-footer">
+    <div class="footer-wrapper container-fluid">
+      <div class="row">
+        <div class="col-sm my-1">
+          <p class="m-0"
+            >Mantis &#9829; crafted by Team <a href="https://themeforest.net/user/codedthemes" target="_blank">Codedthemes</a> Distributed by <a href="https://themewagon.com/">ThemeWagon</a>.</p
+          >
+        </div>
+        <div class="col-auto my-1">
+          <ul class="list-inline footer-link mb-0">
+            <li class="list-inline-item"><a href="../index.html">Home</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+</body>
+<!-- [Body] end -->
+
+</html>

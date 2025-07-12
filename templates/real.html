@@ -1,0 +1,68 @@
+{% extends 'index.html' %}
+{% load static %}
+
+{% block content %}
+<div class="pc-container">
+  <div class="pc-content">
+    <div class="row">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header"><h5>Tải lên Ảnh Hóa đơn để Trích xuất</h5></div>
+          <div class="card-body">
+            <form id="kieUploadForm" method="post" action="{% url 'run-real' %}" enctype="multipart/form-data">
+              {% csrf_token %}
+              <div class="mb-3">
+                <input class="form-control" type="file" id="invoiceImage" name="invoice_image" required>
+              </div>
+              <button type="submit" class="btn btn-primary">Bắt đầu Trích xuất</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+{% if result_data %}
+<div class="row mt-4">
+    <div class="col-md-5">
+        <div class="card">
+            <div class="card-header"><h5><i class="ti ti-file-text me-2"></i>Thông tin Trích xuất</h5></div>
+            <div class="card-body">
+                <dl class="row">
+                    {% for item in result_data.extracted_text %}
+                        <dt class="col-sm-4">{{ item.key }}</dt>
+                        <dd class="col-sm-8">
+                            {% if item.is_list %}
+                                <ul class="list-unstyled mb-0">
+                                {% for sub_item in item.value %}
+                                    <li>- {{ sub_item }}</li>
+                                {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p class="mb-0">{{ item.value }}</p>
+                            {% endif %}
+                        </dd>
+                        <hr class="my-1">
+                    {% empty %}
+                        <p>Không có dữ liệu nào được trích xuất.</p>
+                    {% endfor %}
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header"><h5><i class="ti ti-photo me-2"></i>Ảnh đã Chú thích</h5></div>
+            <div class="card-body text-center">
+                <img src="{{ result_data.annotated_image_url }}" class="img-fluid rounded" alt="Ảnh kết quả">
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+  </div>
+</div>
+
+
+{% endblock %}

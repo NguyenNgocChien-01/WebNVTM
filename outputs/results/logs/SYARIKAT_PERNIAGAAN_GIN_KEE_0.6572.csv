@@ -1,0 +1,8 @@
+Label,Precision,Recall,F1-Score,Val Acc,Val AUC,Val Loss,Val MMC,TN,FP,FN,TP,Time,Ep Stopped,Index Fold,Val Acc Avg,SD Acc,Val AUC Avg,SD MMC,Va MMC Avg
+Macro Avg,0.5523,0.6572,0.5769,0.9310344827586207,nan,0.2969280779361725,0.15517241379310345,,,,,,,,,,,,
+company,1.0000,,,,,,,,,,,,,,,,,,
+address,1.0000,,,,,,,,,,,,,,,,,,
+date,0.0000,,,,,,,,,,,,,,,,,,
+total,0.3333,,,,,,,,,,,,,,,,,,
+item,0.0000,,,,,,,,,,,,,,,,,,
+other,0.9804,,,,,,,,,,,,,,,,,,

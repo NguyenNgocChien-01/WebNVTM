@@ -1,0 +1,82 @@
+{% extends 'index.html' %}
+{% load static %}
+
+{% block content %}
+<div class="pc-container">
+    <div class="pc-content">
+
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Chạy Dự đoán cho ảnh trong tập Test</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="post" action="{% url 'run-test'  %}">
+                            {% csrf_token %}
+                            <div class="input-group mb-3">
+                                <span class="input-group-text">Nhập Index Ảnh</span>
+                                <input type="number" class="form-control" name="image_index" placeholder="Ví dụ: 0" required>
+                                <button class="btn btn-primary" type="submit">
+                                    <i class="ti ti-player-play me-2"></i>Chạy
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            {% if messages %}
+            <div class="col-12">
+                {% for message in messages %}
+                <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-success{% endif %}" role="alert">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if result_data %}
+            <div class="col-md-5">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="ti ti-file-text me-2"></i>Thông tin Trích xuất</h5>
+                    </div>
+            <div class="card-body">
+                <dl class="row">
+                    {% for item in result_data.extracted_text %}
+                        <dt class="col-sm-4">{{ item.key }}</dt>
+                        <dd class="col-sm-8">
+                            {% if item.is_list %}
+                                <ul class="list-unstyled mb-0">
+                                {% for sub_item in item.value %}
+                                    <li>- {{ sub_item }}</li>
+                                {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p class="mb-0">{{ item.value }}</p>
+                            {% endif %}
+                        </dd>
+                        <hr class="my-1">
+                    {% empty %}
+                        <p>Không có dữ liệu nào được trích xuất.</p>
+                    {% endfor %}
+                </dl>
+            </div>
+                </div>
+            </div>
+            <div class="col-md-7">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="ti ti-photo me-2"></i>Ảnh đã Chú thích</h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <img src="{{ result_data.annotated_image_url }}" style="max-width: 50%; height: auto;" class="img-fluid rounded" alt="Ảnh kết quả">
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        </div>
+</div>
+{% endblock %}

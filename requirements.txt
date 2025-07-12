@@ -1,0 +1,12 @@
+torch
+torch_geometric
+pandas
+numpy
+opencv-python
+matplotlib
+scikit-learn
+sentence-transformers
+tqdm
+networkx
+pytesseract
+easyocr
