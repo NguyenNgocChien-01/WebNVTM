@@ -1,0 +1,73 @@
+{
+    "I. Thong_so_huan_luyen": {
+        "lr": 0.001,
+        "weight_decay": 0.001,
+        "hidden_dims": [
+            512,
+            256,
+            128
+        ],
+        "dropout_rate": 0.3,
+        "n_classes": 6,
+        "num_epochs": 5,
+        "chebnet": true,
+        "K": 3
+    },
+    "II. Ket_qua_cuoi_cung": {
+        "epoch_stopped_at": 5,
+        "best_validation_loss": 3.236351251602173,
+        "final_accuracy_on_test": 0.07473635946813388,
+        "execution_time_seconds": 13.94
+    },
+    "III. Bao_cao_chi_tiet": {
+        "company": {
+            "precision": 0.1598173515981735,
+            "recall": 0.875,
+            "f1-score": 0.2702702702702703,
+            "support": 80.0
+        },
+        "address": {
+            "precision": 0.7934782608695652,
+            "recall": 0.20916905444126074,
+            "f1-score": 0.3310657596371882,
+            "support": 349.0
+        },
+        "date": {
+            "precision": 0.04180064308681672,
+            "recall": 0.7536231884057971,
+            "f1-score": 0.07920792079207921,
+            "support": 69.0
+        },
+        "total": {
+            "precision": 0.03171953255425709,
+            "recall": 0.4523809523809524,
+            "f1-score": 0.059282371294851796,
+            "support": 84.0
+        },
+        "item": {
+            "precision": 0.06286127167630058,
+            "recall": 0.4484536082474227,
+            "f1-score": 0.11026615969581749,
+            "support": 194.0
+        },
+        "other": {
+            "precision": 1.0,
+            "recall": 0.0016731734523145567,
+            "f1-score": 0.0033407572383073497,
+            "support": 3586.0
+        },
+        "accuracy": 0.07473635946813388,
+        "macro avg": {
+            "precision": 0.34827950996418555,
+            "recall": 0.4567166628212913,
+            "f1-score": 0.1422388731547524,
+            "support": 4362.0
+        },
+        "weighted avg": {
+            "precision": 0.8925843817019905,
+            "recall": 0.07473635946813388,
+            "f1-score": 0.04149019438238883,
+            "support": 4362.0
+        }
+    }
+}

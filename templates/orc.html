@@ -1,0 +1,73 @@
+{% extends 'index.html' %}
+{% load static %}
+
+{% block content %}
+<div class="pc-container">
+    <div class="pc-content">
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header"><h5>Tải lên Ảnh Hóa đơn để Chạy OCR</h5></div>
+                    <div class="card-body">
+                        <form method="post" action="{% url 'simple_ocr' %}" enctype="multipart/form-data">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <input class="form-control" type="file" name="invoice_image" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Chạy OCR</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if messages %}
+        <div class="row mt-4">
+            <div class="col-12">
+                {% for message in messages %}
+                <div class="alert {% if message.tags == 'error' %}alert-danger{% elif message.tags == 'success' %}alert-success{% else %}alert-warning{% endif %}" role="alert">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if ocr_results %}
+        <div class="row mt-4">
+            <div class="col-md-7">
+                <div class="card">
+                    <div class="card-header"><h5>Ảnh đã tải lên</h5></div>
+                    <div class="card-body text-center">
+                        <img src="{{ uploaded_image_url }}" class="img-fluid rounded" alt="Ảnh gốc">
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-5">
+                <div class="card">
+                    <div class="card-header"><h5>Văn bản nhận diện được</h5></div>
+                    <div class="card-body" style="max-height: 500px; overflow-y: auto;">
+                        <table class="table table-sm table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Text</th>
+                                    <th>Độ tin cậy</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in ocr_results %}
+                                <tr>
+                                    <td>{{ row.text }}</td>
+                                    <td>{{ row.conf }}%</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

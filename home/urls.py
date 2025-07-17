@@ -10,5 +10,6 @@ urlpatterns = [
     path('test/',run_test, name='test'),
     path('real/',run_real, name='real'),
     path('run-test/',run_by_index_view, name='run-test'),
+    path('orc', trangchu, name='simple_ocr'),
 
 ]
