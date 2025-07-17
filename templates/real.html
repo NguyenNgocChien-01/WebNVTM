@@ -7,62 +7,301 @@
     <div class="row">
       <div class="col-12">
         <div class="card">
-          <div class="card-header"><h5>Tải lên Ảnh Hóa đơn để Trích xuất</h5></div>
+          <div class="card-header">
+            <h5><i class="ti ti-scan me-2"></i>Trích xuất Thông tin Hóa đơn</h5>
+            <small class="text-muted">Tải lên ảnh hóa đơn để trích xuất thông tin tự động</small>
+          </div>
           <div class="card-body">
             <form id="kieUploadForm" method="post" action="{% url 'run-real' %}" enctype="multipart/form-data">
               {% csrf_token %}
               <div class="mb-3">
-                <input class="form-control" type="file" id="invoiceImage" name="invoice_image" required>
+                <label for="invoiceImage" class="form-label">Chọn ảnh hóa đơn</label>
+                <input class="form-control" type="file" id="invoiceImage" name="invoice_image" 
+                       accept="image/*" required>
+                <div class="form-text">
+                  Hỗ trợ: JPG, PNG, BMP, TIFF. Kích thước tối đa: 10MB
+                </div>
               </div>
-              <button type="submit" class="btn btn-primary">Bắt đầu Trích xuất</button>
+              
+              <!-- Preview ảnh -->
+              <div class="mb-3" id="imagePreview" style="display: none;">
+                <label class="form-label">Xem trước:</label>
+                <img id="previewImg" class="img-fluid rounded border" style="max-height: 300px;">
+              </div>
+              
+              <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary" id="submitBtn">
+                  <i class="ti ti-upload me-2"></i>Bắt đầu Trích xuất
+                </button>
+                <button type="button" class="btn btn-secondary" id="clearBtn" style="display: none;">
+                  <i class="ti ti-x me-2"></i>Xóa
+                </button>
+              </div>
             </form>
           </div>
         </div>
       </div>
     </div>
 
-{% if result_data %}
-<div class="row mt-4">
-    <div class="col-md-5">
+    <!-- Loading spinner -->
+    <div id="loadingSpinner" class="row mt-4" style="display: none;">
+      <div class="col-12">
         <div class="card">
-            <div class="card-header"><h5><i class="ti ti-file-text me-2"></i>Thông tin Trích xuất</h5></div>
-            <div class="card-body">
-                <dl class="row">
-                    {% for item in result_data.extracted_text %}
-                        <dt class="col-sm-4">{{ item.key }}</dt>
-                        <dd class="col-sm-8">
-                            {% if item.is_list %}
-                                <ul class="list-unstyled mb-0">
-                                {% for sub_item in item.value %}
-                                    <li>- {{ sub_item }}</li>
-                                {% endfor %}
-                                </ul>
-                            {% else %}
-                                <p class="mb-0">{{ item.value }}</p>
-                            {% endif %}
-                        </dd>
-                        <hr class="my-1">
-                    {% empty %}
-                        <p>Không có dữ liệu nào được trích xuất.</p>
+          <div class="card-body text-center">
+            <div class="spinner-border text-primary mb-3" role="status">
+              <span class="visually-hidden">Đang xử lý...</span>
+            </div>
+            <h5>Đang xử lý ảnh...</h5>
+            <p class="text-muted mb-0">Vui lòng chờ trong giây lát</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Kết quả -->
+    {% if result_data %}
+    <div class="row mt-4">
+      <div class="col-md-5">
+        <div class="card">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="ti ti-file-text me-2"></i>Thông tin Trích xuất</h5>
+            <button class="btn btn-sm btn-outline-primary" onclick="exportResults()">
+              <i class="ti ti-download me-1"></i>Xuất
+            </button>
+          </div>
+          <div class="card-body">
+            {% if result_data.processing_stats %}
+            <div class="alert alert-info">
+              <small>
+                <i class="ti ti-info-circle me-1"></i>
+                Nhận diện: {{ result_data.processing_stats.total_text_detected }} văn bản | 
+                Phân loại: {{ result_data.processing_stats.total_labels_predicted }} nhãn
+              </small>
+            </div>
+            {% endif %}
+            
+            <dl class="row">
+              {% for item in result_data.extracted_text %}
+                <dt class="col-sm-4">
+                  <i class="ti ti-chevron-right me-1"></i>{{ item.key }}
+                </dt>
+                <dd class="col-sm-8">
+                  {% if item.is_list %}
+                    <ul class="list-unstyled mb-0">
+                    {% for sub_item in item.value %}
+                      <li class="mb-1">
+                        <span class="badge bg-light text-dark">{{ sub_item }}</span>
+                      </li>
                     {% endfor %}
-                </dl>
-            </div>
+                    </ul>
+                  {% else %}
+                    <span class="fw-medium">{{ item.value }}</span>
+                  {% endif %}
+                </dd>
+                {% if not forloop.last %}
+                  <hr class="my-2">
+                {% endif %}
+              {% empty %}
+                <div class="text-center text-muted">
+                  <i class="ti ti-alert-circle display-4 mb-2"></i>
+                  <p>Không có dữ liệu nào được trích xuất.</p>
+                  <small>Hãy thử với ảnh rõ nét hơn hoặc định dạng khác.</small>
+                </div>
+              {% endfor %}
+            </dl>
+          </div>
         </div>
-    </div>
+      </div>
 
-    <div class="col-md-7">
+      <div class="col-md-7">
         <div class="card">
-            <div class="card-header"><h5><i class="ti ti-photo me-2"></i>Ảnh đã Chú thích</h5></div>
-            <div class="card-body text-center">
-                <img src="{{ result_data.annotated_image_url }}" class="img-fluid rounded" alt="Ảnh kết quả">
+          <div class="card-header">
+            <h5><i class="ti ti-photo me-2"></i>Ảnh đã Chú thích</h5>
+          </div>
+          <div class="card-body">
+            <div class="text-center mb-3">
+              <img src="{{ result_data.annotated_image_url }}" 
+                   class="img-fluid rounded border" 
+                   alt="Ảnh kết quả"
+                   style="max-height: 600px;">
             </div>
+            
+            <!-- Chú thích màu -->
+            <div class="mt-3">
+              <h6>Chú thích màu:</h6>
+              <div class="d-flex flex-wrap gap-2">
+                <span class="badge" style="background-color: #ff0000;">
+                  <i class="ti ti-square-filled me-1"></i>CÔNG TY
+                </span>
+                <span class="badge" style="background-color: #00ff00;">
+                  <i class="ti ti-square-filled me-1"></i>ĐỊA CHỈ
+                </span>
+                <span class="badge" style="background-color: #0000ff;">
+                  <i class="ti ti-square-filled me-1"></i>NGÀY
+                </span>
+                <span class="badge" style="background-color: #ffff00; color: #000;">
+                  <i class="ti ti-square-filled me-1"></i>TỔNG TIỀN
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
     </div>
-</div>
-{% endif %}
-
+    {% endif %}
   </div>
 </div>
 
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.getElementById('kieUploadForm');
+  const fileInput = document.getElementById('invoiceImage');
+  const previewDiv = document.getElementById('imagePreview');
+  const previewImg = document.getElementById('previewImg');
+  const submitBtn = document.getElementById('submitBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const loadingSpinner = document.getElementById('loadingSpinner');
 
+  // Preview ảnh khi chọn file
+  fileInput.addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+      // Kiểm tra kích thước file
+      if (file.size > 10 * 1024 * 1024) {
+        alert('File quá lớn! Vui lòng chọn file nhỏ hơn 10MB.');
+        this.value = '';
+        return;
+      }
+
+      // Hiển thị preview
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        previewImg.src = e.target.result;
+        previewDiv.style.display = 'block';
+        clearBtn.style.display = 'inline-block';
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+
+  // Xóa file và preview
+  clearBtn.addEventListener('click', function() {
+    fileInput.value = '';
+    previewDiv.style.display = 'none';
+    clearBtn.style.display = 'none';
+  });
+
+  // Hiển thị loading khi submit
+  form.addEventListener('submit', function() {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="ti ti-loader me-2"></i>Đang xử lý...';
+    loadingSpinner.style.display = 'block';
+    
+    // Scroll to loading
+    loadingSpinner.scrollIntoView({ behavior: 'smooth' });
+  });
+
+  // Drag and drop
+  const cardBody = document.querySelector('.card-body');
+  
+  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    cardBody.addEventListener(eventName, preventDefaults, false);
+  });
+
+  function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  ['dragenter', 'dragover'].forEach(eventName => {
+    cardBody.addEventListener(eventName, highlight, false);
+  });
+
+  ['dragleave', 'drop'].forEach(eventName => {
+    cardBody.addEventListener(eventName, unhighlight, false);
+  });
+
+  function highlight(e) {
+    cardBody.classList.add('border-primary');
+  }
+
+  function unhighlight(e) {
+    cardBody.classList.remove('border-primary');
+  }
+
+  cardBody.addEventListener('drop', handleDrop, false);
+
+  function handleDrop(e) {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    fileInput.files = files;
+    
+    // Trigger change event
+    const event = new Event('change', { bubbles: true });
+    fileInput.dispatchEvent(event);
+  }
+});
+
+// Xuất kết quả
+function exportResults() {
+  const extractedData = {};
+  document.querySelectorAll('dl.row dt').forEach((dt, index) => {
+    const key = dt.textContent.trim();
+    const dd = dt.nextElementSibling;
+    let value = '';
+    
+    if (dd.querySelector('ul')) {
+      value = Array.from(dd.querySelectorAll('li')).map(li => li.textContent.trim());
+    } else {
+      value = dd.textContent.trim();
+    }
+    
+    extractedData[key] = value;
+  });
+  
+  const dataStr = JSON.stringify(extractedData, null, 2);
+  const dataBlob = new Blob([dataStr], {type: 'application/json'});
+  const url = URL.createObjectURL(dataBlob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'ket_qua_trich_xuat.json';
+  link.click();
+  URL.revokeObjectURL(url);
+}
+</script>
+
+<style>
+.card-body.border-primary {
+  border-color: #007bff !important;
+  background-color: #f8f9ff;
+}
+
+.badge {
+  font-size: 0.75rem;
+}
+
+#imagePreview img {
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.spinner-border {
+  width: 3rem;
+  height: 3rem;
+}
+
+dl.row dt {
+  font-weight: 600;
+  color: #495057;
+}
+
+dl.row dd {
+  margin-bottom: 0;
+}
+
+.alert-info {
+  background-color: #e3f2fd;
+  border-color: #bbdefb;
+  color: #0d47a1;
+}
+</style>
 {% endblock %}

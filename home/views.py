@@ -30,17 +30,47 @@ def run_real(request):
 def run_test(request):
     return render(request,"test.html")
 
-# Tải Model EasyOCR (1 lần duy nhất)
-# ['vi', 'en'] để nhận dạng cả tiếng Việt và tiếng Anh
-print("--- Đang tải mô hình EasyOCR. Quá trình này có thể mất vài phút... ---")
-OCR_READER = easyocr.Reader(['vi', 'en'], gpu=torch.cuda.is_available())
-print("✅ EasyOCR đã sẵn sàng!")
+from sentence_transformers import SentenceTransformer
+
+# --- 1. IMPORT CÁC THÀNH PHẦN TỪ DỰ ÁN ---
+from src.config import CONFIG
+from src.data_processing import Grapher
+from src.model import InvoiceGCN
+from src.predict import load_inference_model
+
+# --- 2. KHỞI TẠO CÁC MODEL (Tải 1 lần duy nhất) ---
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+OCR_READER = None
+SENT_MODEL = None
+MODEL = None
+TEST_DATA = None
+
+try:
+    _, TEST_DATA = load_data(CONFIG)
+    # Tải Model EasyOCR
+    print("--- Đang tải mô hình EasyOCR... ---")
+    OCR_READER = easyocr.Reader(['vi', 'en'], gpu=torch.cuda.is_available())
+    print("✅ EasyOCR đã sẵn sàng!")
+
+    # Tải mô hình ngôn ngữ SentenceTransformer
+    print("--- Đang tải mô hình SentenceTransformer... ---")
+    SENT_MODEL = SentenceTransformer('distilbert-base-nli-stsb-mean-tokens', device=DEVICE)
+    print("✅ SentenceTransformer đã sẵn sàng!")
+
+    # Tải Model GCN với đúng input_dim
+    input_dim = 778
+    MODEL = load_inference_model(input_dim, CONFIG, DEVICE)
+    print(f"✅ Django: Model KIE đã được tải thành công với input_dim={input_dim}!")
+
+except Exception as e:
+    print(f"❌ LỖI KHỞI TẠO MODEL: {e}. Chức năng dự đoán có thể không hoạt động.")
+
 
 
 # --- 2. TẢI MODEL VÀ DỮ LIỆU CHUNG (Tải 1 lần khi server khởi động) ---
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 MODEL = None
-TEST_DATA = None
+
 
 try:
     _, TEST_DATA = load_data(CONFIG)
@@ -55,6 +85,14 @@ try:
         print(f"✅ Django: Model KIE và Test Data đã được tải thành công!")
 except Exception as e:
     print(f"❌ LỖI KHI TẢI MODEL/DATA: {e}.")
+
+
+
+
+
+
+
+
 
 
 
@@ -155,141 +193,24 @@ def run_by_index_view(request):
 
     return render(request, 'test.html', context)
 
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Ảnh thật
-# # --- 2. CÁC HÀM HỖ TRỢ ---
-# def run_ocr_with_coords(image_path):
-#     """Chạy OCR và trả về DataFrame sạch với 5 cột."""
-#     image = cv2.imread(image_path)
-#     if image is None: raise FileNotFoundError(f"OpenCV không thể đọc ảnh: {image_path}")
-#     ocr_data = pytesseract.image_to_data(image, lang='vie+eng', output_type=pytesseract.Output.DATAFRAME)
-#     ocr_data = ocr_data[ocr_data.conf > 30]
-#     ocr_data.dropna(subset=['text'], inplace=True)
-#     ocr_data['text'] = ocr_data['text'].str.strip()
-#     ocr_data = ocr_data[ocr_data.text != '']
-#     ocr_data['xmax'] = ocr_data['left'] + ocr_data['width']
-#     ocr_data['ymax'] = ocr_data['top'] + ocr_data['height']
-#     ocr_data.rename(columns={'left': 'xmin', 'top': 'ymin', 'text': 'Object'}, inplace=True)
-#     return ocr_data[['xmin', 'ymin', 'xmax', 'ymax', 'Object']]
-
-# def create_temp_csv_for_grapher(ocr_df, file_id):
-#     """
-#     Hàm "chuyển đổi": Nhận DataFrame sạch, chuyển thành định dạng 8 tọa độ
-#     và lưu thành file CSV tạm thời mà Grapher cũ có thể đọc.
-#     """
-#     formatted_rows = []
-#     for _, row in ocr_df.iterrows():
-#         xmin, ymin, xmax, ymax, text = row['xmin'], row['ymin'], row['xmax'], row['ymax'], row['Object']
-#         if ',' in str(text): text = f'"{text}"'
-#         # Tạo chuỗi 8 tọa độ + text
-#         formatted_string = f"{xmin},{ymin},{xmax},{ymin},{xmax},{ymax},{xmin},{ymax},{text}"
-#         formatted_rows.append(formatted_string)
-    
-#     # Tạo DataFrame với một cột duy nhất
-#     df_for_csv = pd.DataFrame(formatted_rows)
-    
-#     # Lưu file CSV tạm thời vào đúng thư mục mà Grapher sẽ tìm
-#     temp_box_dir = os.path.join(settings.BASE_DIR, 'data/raw/box')
-#     os.makedirs(temp_box_dir, exist_ok=True)
-#     csv_path = os.path.join(temp_box_dir, f"{file_id}.csv")
-#     df_for_csv.to_csv(csv_path, index=False, header=False, encoding='utf-8')
-#     print(f"--- [DEBUG] Đã tạo file CSV tạm tại: {csv_path} ---")
-
-
-# # --- 3. VIEW CHÍNH ---
-# def ocr_and_predict_view(request):
-#     context = {}
-#     if request.method == 'POST':
-#         image_file = request.FILES.get("invoice_image")
-#         if not (image_file and MODEL):
-#             messages.error(request, "Lỗi: Chưa chọn file hoặc model chưa được tải.")
-#             return render(request, 'real.html', context)
-        
-#         fs = FileSystemStorage()
-#         file_id = str(uuid.uuid4())
-#         filename = fs.save(f"uploads/{file_id}.jpg", image_file)
-#         uploaded_file_path = fs.path(filename)
-#         context['original_image_url'] = fs.url(filename)
-
-#         try:
-#             # B1: Chạy OCR
-#             ocr_dataframe = run_ocr_with_coords(uploaded_file_path)
-#             if ocr_dataframe.empty: raise ValueError("OCR không nhận diện được văn bản.")
-
-#             # B2: Tạo file CSV tạm thời với định dạng cũ
-#             create_temp_csv_for_grapher(ocr_dataframe, file_id)
-
-#             # B3: Khởi tạo Grapher gốc. Nó sẽ tự tìm và đọc file CSV vừa tạo
-#             grapher = Grapher(
-#                 filename=file_id, 
-#                 data_fd=os.path.join(settings.BASE_DIR, 'data/raw'),
-#                 image_path=uploaded_file_path
-#             )
-            
-#             # B4: Chạy các bước xử lý của Grapher
-#             G, _, df_processed = grapher.graph_formation()
-#             df_features = grapher.relative_distance()
-            
-#             # B5: Tạo Data Object và dự đoán
-#             adj = torch.tensor(list(G.edges)).t().contiguous()
-#             feature_cols = ['rd_r', 'rd_b', 'rd_l', 'rd_t', 'n_upper', 'n_alpha', 'n_spaces', 'n_numeric', 'n_special']
-#             x = torch.tensor(df_features[feature_cols].values, dtype=torch.float)
-#             single_data = Data(x=x, edge_index=adj, img_id=file_id)
-
-#             with torch.no_grad():
-#                 out = MODEL(single_data.to(DEVICE))
-#                 pred_indices = out.max(dim=1)[1].cpu().numpy()
-            
-#             # B6: Xử lý kết quả và tạo ảnh chú thích
-#             # ==================================================
-#             label_map = {i: label for i, label in enumerate(CONFIG['labels'])}
-#             df_features['predicted_label'] = [label_map.get(i) for i in pred_indices]
-            
-#             image_to_draw = cv2.cvtColor(cv2.imread(uploaded_file_path), cv2.COLOR_BGR2RGB)
-#             extracted_info = defaultdict(list)
-#             for _, row in df_features.iterrows():
-#                 if row['predicted_label'] != 'other':
-#                     key = row['predicted_label'].upper()
-#                     extracted_info[key].append(str(row['Object']))
-#                     x1, y1, x2, y2 = int(row['xmin']), int(row['ymin']), int(row['xmax']), int(row['ymax'])
-#                     cv2.rectangle(image_to_draw, (x1, y1), (x2, y2), (255, 0, 0), 2)
-#                     cv2.putText(image_to_draw, key, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
-            
-#             # Định dạng và lưu ảnh kết quả
-#             formatted_info = {key: ' '.join(value) if key in ['ADDRESS', 'COMPANY'] else value for key, value in extracted_info.items()}
-#             result_filename = f"{file_id}_annotated.jpg"
-#             result_folder = os.path.join(settings.MEDIA_ROOT, 'results')
-#             os.makedirs(result_folder, exist_ok=True)
-#             cv2.imwrite(os.path.join(result_folder, result_filename), cv2.cvtColor(image_to_draw, cv2.COLOR_RGB2BGR))
-#             result_image_url = os.path.join(settings.MEDIA_URL, 'results', result_filename).replace("\\", "/")
-
-#             # B7: Chuẩn bị context để hiển thị
-#             # ==================================================
-#             results_for_template = []
-#             for key, value in formatted_info.items():
-#                 results_for_template.append({
-#                     'key': key,
-#                     'value': value,
-#                     'is_list': isinstance(value, list)
-#                 })
-
-#             context['result_data'] = {
-#                 'extracted_text': results_for_template,
-#                 'annotated_image_url': result_image_url,
-#             }
-#             messages.success(request, "Đã trích xuất và dự đoán thành công!")
-
-
-#         except Exception as e:
-#             traceback.print_exc()
-#             messages.error(request, f"Lỗi trong quá trình xử lý: {e}")
-            
-#     return render(request, 'real.html', context)
-
-
-# --- 2. HÀM HỖ TRỢ OCR (Phiên bản EasyOCR) ---
 # --- 3. CÁC HÀM HỖ TRỢ ---
 def run_easyocr_with_coords(image_path):
     """Chạy EasyOCR để lấy chữ và tọa độ, trả về DataFrame."""
+    if not OCR_READER: raise Exception("Mô hình OCR chưa được tải.")
     results = OCR_READER.readtext(image_path)
     ocr_list = []
     for (bbox, text, prob) in results:
@@ -300,20 +221,36 @@ def run_easyocr_with_coords(image_path):
     return pd.DataFrame(ocr_list, columns=['xmin', 'ymin', 'xmax', 'ymax', 'Object'])
 
 def create_data_object(ocr_dataframe, image_object, file_id):
-    """Sử dụng Grapher để chuyển dữ liệu OCR thành Data Object cho model GCN."""
-    # Khởi tạo Grapher "thông minh" bằng cách truyền trực tiếp dữ liệu
+    """
+    Sử dụng Grapher và SentenceTransformer để tạo Data Object với 778 features.
+    """
+    # B1: Dùng Grapher để lấy cấu trúc đồ thị và các feature cơ bản
     grapher = Grapher(ocr_dataframe=ocr_dataframe, image_object=image_object, filename=file_id)
-    
-    # Chạy các bước xử lý của Grapher
     G, _, df_processed = grapher.graph_formation(use_clean_df=True)
     df_features = grapher.relative_distance()
     df_features = grapher.get_text_features(df_features)
-
     
-    # Tạo Data Object
-    adj = torch.tensor(list(G.edges)).t().contiguous()
-    feature_cols = ['rd_r', 'rd_b', 'rd_l', 'rd_t', 'n_upper', 'n_alpha', 'n_spaces', 'n_numeric', 'n_special']
-    x = torch.tensor(df_features[feature_cols].values, dtype=torch.float)
+    # B2: Dùng SentenceTransformer để tạo 768 features ngữ nghĩa
+    text_to_embed = df_features['Object'].fillna('').tolist()
+    text_embeddings = SENT_MODEL.encode(text_to_embed, show_progress_bar=False, device=DEVICE)
+
+    # B3: Nối 2 loại feature lại với nhau
+    
+    # ⭐ THÊM 'line_number' VÀO DANH SÁCH NÀY
+    base_feature_cols = [
+        'rd_r', 'rd_b', 'rd_l', 'rd_t', 
+        'line_number', # <-- Feature bị thiếu
+        'n_upper', 'n_alpha', 'n_spaces', 'n_numeric', 'n_special'
+    ]
+    
+    base_features = df_features[base_feature_cols].values.astype(np.float32)
+    
+    # Nối theo chiều ngang (cột) để tạo ra 10 + 768 = 778 features
+    final_features = np.concatenate((base_features, text_embeddings), axis=1)
+    
+    # B4: Tạo Data Object
+    adj = torch.tensor(list(G.edges), dtype=torch.long).t().contiguous()
+    x = torch.tensor(final_features, dtype=torch.float)
     
     return Data(x=x, edge_index=adj, img_id=file_id), df_features
 
@@ -322,11 +259,11 @@ def ocr_and_predict_view(request):
     context = {}
     if request.method == 'POST':
         image_file = request.FILES.get("invoice_image")
-        if not (image_file and MODEL):
-            messages.error(request, "Lỗi: Chưa chọn file hoặc model AI chưa được tải.")
+        
+        if not (image_file and MODEL and SENT_MODEL and OCR_READER):
+            messages.error(request, "Lỗi hệ thống: Một hoặc nhiều model AI chưa được tải thành công.")
             return render(request, 'real.html', context)
         
-        # Lưu ảnh tải lên
         fs = FileSystemStorage()
         file_id = str(uuid.uuid4())
         filename = fs.save(f"uploads/{file_id}.jpg", image_file)
@@ -334,16 +271,16 @@ def ocr_and_predict_view(request):
         context['original_image_url'] = fs.url(filename)
 
         try:
-            # B1: Chạy EasyOCR
-            ocr_df = run_easyocr_with_coords(uploaded_file_path)
-            if ocr_df.empty:
-                raise ValueError("OCR không nhận diện được văn bản.")
-            
-            # B2: Tạo Data Object từ dữ liệu OCR
-            image_obj = cv2.imread(uploaded_file_path)
-            single_data, df_with_features = create_data_object(ocr_df, image_obj, file_id)
+            # B1: Chạy OCR
+            ocr_dataframe = run_easyocr_with_coords(uploaded_file_path)
+            if ocr_dataframe.empty:
+                raise ValueError("OCR không nhận diện được văn bản nào từ ảnh.")
 
-            # B3: Chạy dự đoán bằng Model GCN
+            # B2: Tạo Data Object với 778 features
+            image_obj = cv2.imread(uploaded_file_path)
+            single_data, df_with_features = create_data_object(ocr_dataframe, image_obj, file_id)
+
+            # B3: Chạy dự đoán
             with torch.no_grad():
                 out = MODEL(single_data.to(DEVICE))
                 pred_indices = out.max(dim=1)[1].cpu().numpy()
@@ -358,21 +295,23 @@ def ocr_and_predict_view(request):
                 if row['predicted_label'] != 'other':
                     key = row['predicted_label'].upper()
                     extracted_info[key].append(str(row['Object']))
-                    x1,y1,x2,y2 = int(row['xmin']),int(row['ymin']),int(row['xmax']),int(row['ymax'])
+                    x1, y1, x2, y2 = int(row['xmin']), int(row['ymin']), int(row['xmax']), int(row['ymax'])
                     cv2.rectangle(image_to_draw, (x1, y1), (x2, y2), (255, 0, 0), 2)
                     cv2.putText(image_to_draw, key, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
             
-            formatted_info = {key: ' '.join(v) if key in ['ADDRESS', 'COMPANY'] else v for key, v in extracted_info.items()}
+            # Định dạng và lưu ảnh kết quả
+            formatted_info = {key: ' '.join(value) if key in ['ADDRESS', 'COMPANY'] else value for key, value in extracted_info.items()}
             result_filename = f"{file_id}_annotated.jpg"
             result_folder = os.path.join(settings.MEDIA_ROOT, 'results')
             os.makedirs(result_folder, exist_ok=True)
             cv2.imwrite(os.path.join(result_folder, result_filename), cv2.cvtColor(image_to_draw, cv2.COLOR_RGB2BGR))
+            result_image_url = os.path.join(settings.MEDIA_URL, 'results', result_filename).replace("\\", "/")
             
             # B5: Chuẩn bị dữ liệu để hiển thị
             results_for_template = [{'key': k, 'value': v, 'is_list': isinstance(v, list)} for k, v in formatted_info.items()]
             context['result_data'] = {
                 'extracted_text': results_for_template,
-                'annotated_image_url': os.path.join(settings.MEDIA_URL, 'results', result_filename).replace("\\", "/"),
+                'annotated_image_url': result_image_url,
             }
             messages.success(request, "Đã trích xuất và dự đoán thành công!")
 
@@ -381,3 +320,5 @@ def ocr_and_predict_view(request):
             messages.error(request, f"Lỗi trong quá trình xử lý: {e}")
             
     return render(request, 'real.html', context)
+
+
