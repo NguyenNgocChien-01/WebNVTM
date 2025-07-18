@@ -1,5 +1,6 @@
 import os
 import time
+import datetime
 import json
 import cv2
 import torch
@@ -19,6 +20,7 @@ from src.model import InvoiceGCN
 from src.predict import load_inference_model, write_evaluation_log 
 from torch_geometric.data import Data
 import easyocr
+import re
 import traceback 
 
 def trangchu(request):
@@ -48,12 +50,10 @@ TEST_DATA = None
 try:
     _, TEST_DATA = load_data(CONFIG)
     # Tải Model EasyOCR
-    print("--- Đang tải mô hình EasyOCR... ---")
     OCR_READER = easyocr.Reader(['vi', 'en'], gpu=torch.cuda.is_available())
     print("✅ EasyOCR đã sẵn sàng!")
 
     # Tải mô hình ngôn ngữ SentenceTransformer
-    print("--- Đang tải mô hình SentenceTransformer... ---")
     SENT_MODEL = SentenceTransformer('distilbert-base-nli-stsb-mean-tokens', device=DEVICE)
     print("✅ SentenceTransformer đã sẵn sàng!")
 
@@ -197,27 +197,178 @@ def run_by_index_view(request):
 
 
 
-
-
-
-
-
-
-
-
-
 # Ảnh thật
-# --- 3. CÁC HÀM HỖ TRỢ ---
+def find_total_with_rules(df):
+    """
+    Tìm tổng tiền cuối cùng bằng cách chấm điểm các ứng viên
+    dựa trên từ khóa mạnh và vị trí.
+    """
+    # Các từ khóa được chấm điểm (điểm càng cao càng đáng tin)
+    strong_keywords = ['grand total', 'tổng cộng thanh toán', 'thanh toán', 'tổng tiền', 'total amount']
+    medium_keywords = ['total', 'tổng cộng', 'cộng']
+    
+    possible_totals = []
+
+    # 1. Lọc ra tất cả các dòng có vẻ là số tiền
+    # Regex để tìm các số có thể chứa dấu chấm, phẩy
+    numeric_rows = df[df['Object'].astype(str).str.match(r'^\$?[\d,.]+$', na=False)]
+
+    for idx, num_row in numeric_rows.iterrows():
+        score = 0
+        text_value = str(num_row['Object'])
+        
+        # Bỏ qua các số quá nhỏ hoặc có vẻ là số lượng
+        if '.' not in text_value and ',' not in text_value and len(text_value) < 3:
+            continue
+            
+        # 2. Tìm từ khóa ở bên trái trên cùng dòng
+        line_ymin, line_ymax = num_row['ymin'] - 5, num_row['ymax'] + 5
+        line_df = df[df['ymin'].between(line_ymin, line_ymax)]
+        
+        # Tìm text bên trái của số
+        text_on_left = line_df[line_df['xmax'] < num_row['xmin']]['Object'].str.cat(sep=' ').lower()
+
+        # 3. Chấm điểm dựa trên từ khóa và vị trí
+        if any(keyword in text_on_left for keyword in strong_keywords):
+            score += 10
+        elif any(keyword in text_on_left for keyword in medium_keywords):
+            score += 5
+            
+        # Thưởng điểm cho các số nằm ở nửa dưới của hóa đơn
+        if num_row['ymin'] > (df['ymax'].max() / 2):
+            score += 2
+        
+        # Chỉ xem xét các ứng viên có điểm > 0
+        if score > 0:
+            try:
+                # Chuyển text thành số để có thể so sánh nếu cần
+                value = float(text_value.replace(',', '').replace('$', ''))
+                possible_totals.append({'score': score, 'value': value, 'index': idx})
+            except:
+                continue
+    
+    if not possible_totals:
+        return None
+
+    # 4. Sắp xếp các ứng viên theo điểm số giảm dần
+    sorted_totals = sorted(possible_totals, key=lambda k: k['score'], reverse=True)
+    
+    # Trả về index của ứng viên có điểm cao nhất
+    return sorted_totals[0]['index']
+
+def find_dates_with_rules(df):
+    """Tìm ngày tháng bằng biểu thức chính quy (regex)."""
+    date_pattern = r'\d{1,2}[/-]\d{1,2}[/-]\d{2,4}'
+    date_indices = []
+    
+    date_rows = df[df['Object'].str.contains(date_pattern, na=False)]
+    for idx, row in date_rows.iterrows():
+        date_indices.append(idx)
+        
+    return date_indices
+def find_items_with_rules(df):
+    """
+    Tìm các mục hàng hóa (item) dựa vào vị trí của các từ khóa tiêu đề.
+    """
+    # Các từ khóa thường xuất hiện ở đầu bảng item
+    header_keywords = ['item', 'desc', 'qty', 'sl', 'price', 'đơn giá', 'amount', 't.tiền', 'thành tiền']
+    
+    # Tìm vị trí (chiều cao) của các từ khóa này
+    header_rows = df[df['Object'].str.contains('|'.join(header_keywords), case=False, na=False)]
+    
+    if header_rows.empty:
+        return [] # Không tìm thấy tiêu đề, không thể xác định vùng item
+
+    # Xác định vùng bắt đầu của danh sách item (ngay bên dưới dòng tiêu đề thấp nhất)
+    start_y = header_rows['ymax'].max()
+
+    # Tìm vị trí của các từ khóa kết thúc danh sách item (ví dụ: "Subtotal", "Total")
+    footer_keywords = ['subtotal', 'sub-total', 'tổng', 'total', 'grand total']
+    footer_rows = df[df['Object'].str.contains('|'.join(footer_keywords), case=False, na=False)]
+    
+    end_y = float('inf')
+    if not footer_rows.empty:
+        # Vùng item kết thúc ngay phía trên dòng "Total" đầu tiên
+        end_y = footer_rows['ymin'].min()
+
+    # Lấy tất cả các dòng nằm giữa vùng bắt đầu và kết thúc
+    item_df = df[(df['ymin'] > start_y) & (df['ymax'] < end_y)]
+    
+    # Trả về index của các dòng được xác định là item
+    return item_df.index.tolist()
+
+def apply_rules_to_predictions(df_with_predictions):
+    """
+    Hàm chính để áp dụng các luật và ghi đè dự đoán của model.
+    """
+    df = df_with_predictions.copy()
+    
+    # 1. Áp dụng luật tìm ngày tháng
+    date_indices = find_dates_with_rules(df)
+    if date_indices:
+        print(f"[RULES] Đã tìm thấy {len(date_indices)} ngày tháng. Ghi đè nhãn...")
+        df.loc[date_indices, 'predicted_label'] = 'date'
+        
+    # 2. Áp dụng luật tìm tổng tiền
+    total_index = find_total_with_rules(df)
+    if total_index is not None:
+        print(f"[RULES] Đã tìm thấy tổng tiền. Ghi đè nhãn...")
+        df.loc[total_index, 'predicted_label'] = 'total'
+        
+        # 3. ⭐ ÁP DỤNG LUẬT TÌM ITEM (THÊM MỚI)
+    # ========================================
+    item_indices = find_items_with_rules(df)
+    if item_indices:
+        print(f"[RULES] Đã tìm thấy {len(item_indices)} mục item. Ghi đè nhãn...")
+        # Ghi đè nhãn cho tất cả các dòng đã tìm thấy
+        df.loc[item_indices, 'predicted_label'] = 'item'
+    # ========================================
+    
+    return df
+
+
+
+
+
+
+def save_results_to_csv(dataframe_with_predictions, formatted_filename_base):
+    """
+    Lưu DataFrame ra file CSV với tên file đã được định dạng sẵn.
+    """
+    debug_dir = os.path.join(settings.MEDIA_ROOT, 'box')
+    os.makedirs(debug_dir, exist_ok=True)
+    
+    # Sử dụng trực tiếp tên file được truyền vào
+    csv_path = os.path.join(debug_dir, f"{formatted_filename_base}_details.csv")
+    
+    try:
+        columns_to_save = ['xmin', 'ymin', 'xmax', 'ymax', 'Object', 'predicted_label']
+        df_to_save = dataframe_with_predictions[columns_to_save]
+        df_to_save.to_csv(csv_path, index=False, encoding='utf-8-sig')
+        
+        print(f"✅ Đã lưu file kiểm tra tại: {csv_path}")
+        return csv_path
+    except Exception as e:
+        print(f"Lỗi khi lưu file CSV: {e}")
+        return None
+# Ảnh thật
+
+
+# --- Hàm OCR ---
 def run_easyocr_with_coords(image_path):
-    """Chạy EasyOCR để lấy chữ và tọa độ, trả về DataFrame."""
-    if not OCR_READER: raise Exception("Mô hình OCR chưa được tải.")
-    results = OCR_READER.readtext(image_path)
+    image = cv2.imread(image_path)
+    if image is None: raise FileNotFoundError(f"OpenCV không thể đọc ảnh: {image_path}")
+
+
+    
+    print("--- [EasyOCR] Đang xử lý ảnh đã được tiền xử lý... ---")
+    # ⭐ SỬA LỖI: Chỉ gọi readtext MỘT LẦN trên ảnh đã xử lý
+    results = OCR_READER.readtext(image)
+    
     ocr_list = []
     for (bbox, text, prob) in results:
         (tl, tr, br, bl) = bbox
-        xmin, ymin = int(tl[0]), int(tl[1])
-        xmax, ymax = int(br[0]), int(br[1])
-        ocr_list.append([xmin, ymin, xmax, ymax, text])
+        ocr_list.append([int(tl[0]), int(tl[1]), int(br[0]), int(br[1]), text])
     return pd.DataFrame(ocr_list, columns=['xmin', 'ymin', 'xmax', 'ymax', 'Object'])
 
 def create_data_object(ocr_dataframe, image_object, file_id):
@@ -254,43 +405,57 @@ def create_data_object(ocr_dataframe, image_object, file_id):
     
     return Data(x=x, edge_index=adj, img_id=file_id), df_features
 
-# --- 4. VIEW CHÍNH ---
+# --- VIEW CHÍNH (ĐÃ ĐƯỢC SỬA LẠI HOÀN CHỈNH) ---
 def ocr_and_predict_view(request):
     context = {}
     if request.method == 'POST':
         image_file = request.FILES.get("invoice_image")
         
-        if not (image_file and MODEL and SENT_MODEL and OCR_READER):
-            messages.error(request, "Lỗi hệ thống: Một hoặc nhiều model AI chưa được tải thành công.")
+        if not (image_file and MODEL):
+            messages.error(request, "Lỗi: Chưa chọn file hoặc model chưa được tải.")
             return render(request, 'real.html', context)
         
+        # --- PHẦN LƯU FILE ĐÃ ĐƯỢC CHUẨN HÓA ---
+        timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        original_filename_base = os.path.splitext(image_file.name)[0]
+        safe_filename_base = "".join([c for c in original_filename_base if c.isalnum() or c in (' ', '_')]).rstrip()
+        unique_name = f"{timestamp}_{safe_filename_base}"
+        
         fs = FileSystemStorage()
-        file_id = str(uuid.uuid4())
-        filename = fs.save(f"uploads/{file_id}.jpg", image_file)
-        uploaded_file_path = fs.path(filename)
-        context['original_image_url'] = fs.url(filename)
+        saved_filename = fs.save(f"uploads/{unique_name}.jpg", image_file)
+        uploaded_file_path = fs.path(saved_filename)
+        context['original_image_url'] = fs.url(saved_filename)
+        # --- KẾT THÚC PHẦN LƯU FILE ---
 
         try:
             # B1: Chạy OCR
             ocr_dataframe = run_easyocr_with_coords(uploaded_file_path)
-            if ocr_dataframe.empty:
-                raise ValueError("OCR không nhận diện được văn bản nào từ ảnh.")
+            if ocr_dataframe.empty: raise ValueError("OCR không nhận diện được văn bản.")
 
-            # B2: Tạo Data Object với 778 features
+            # B2: Tạo Data Object
             image_obj = cv2.imread(uploaded_file_path)
-            single_data, df_with_features = create_data_object(ocr_dataframe, image_obj, file_id)
+            single_data, df_with_features = create_data_object(ocr_dataframe, image_obj, unique_name)
 
             # B3: Chạy dự đoán
             with torch.no_grad():
                 out = MODEL(single_data.to(DEVICE))
                 pred_indices = out.max(dim=1)[1].cpu().numpy()
             
-            # B4: Xử lý kết quả và tạo ảnh chú thích
+            # B4: Gán nhãn và áp dụng luật
             label_map = {i: label for i, label in enumerate(CONFIG['labels'])}
             df_with_features['predicted_label'] = [label_map.get(i, 'other') for i in pred_indices]
+            df_with_features = apply_rules_to_predictions(df_with_features)
+
+            # ⭐ GỌI HÀM LƯU CSV VỚI TÊN FILE MỚI
+            save_results_to_csv(df_with_features, unique_name)
             
+            # B5: ⭐ XỬ LÝ KẾT QUẢ CUỐI CÙNG (PHẦN BỊ THIẾU ĐÃ ĐƯỢC THÊM LẠI)
+            # ====================================================================
+
             image_to_draw = cv2.cvtColor(image_obj, cv2.COLOR_BGR2RGB)
             extracted_info = defaultdict(list)
+            
+            # Vòng lặp để trích xuất text và vẽ lên ảnh
             for _, row in df_with_features.iterrows():
                 if row['predicted_label'] != 'other':
                     key = row['predicted_label'].upper()
@@ -299,15 +464,18 @@ def ocr_and_predict_view(request):
                     cv2.rectangle(image_to_draw, (x1, y1), (x2, y2), (255, 0, 0), 2)
                     cv2.putText(image_to_draw, key, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
             
-            # Định dạng và lưu ảnh kết quả
+            # Định dạng lại text
             formatted_info = {key: ' '.join(value) if key in ['ADDRESS', 'COMPANY'] else value for key, value in extracted_info.items()}
-            result_filename = f"{file_id}_annotated.jpg"
+            
+                        
+            # ⭐ LƯU ẢNH KẾT QUẢ VỚI TÊN FILE MỚI
+            result_filename = f"{unique_name}_annotated.jpg"
             result_folder = os.path.join(settings.MEDIA_ROOT, 'results')
             os.makedirs(result_folder, exist_ok=True)
             cv2.imwrite(os.path.join(result_folder, result_filename), cv2.cvtColor(image_to_draw, cv2.COLOR_RGB2BGR))
             result_image_url = os.path.join(settings.MEDIA_URL, 'results', result_filename).replace("\\", "/")
-            
-            # B5: Chuẩn bị dữ liệu để hiển thị
+
+            # B6: Chuẩn bị dữ liệu để hiển thị
             results_for_template = [{'key': k, 'value': v, 'is_list': isinstance(v, list)} for k, v in formatted_info.items()]
             context['result_data'] = {
                 'extracted_text': results_for_template,
@@ -320,5 +488,3 @@ def ocr_and_predict_view(request):
             messages.error(request, f"Lỗi trong quá trình xử lý: {e}")
             
     return render(request, 'real.html', context)
-
-

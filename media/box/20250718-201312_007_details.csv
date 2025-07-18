@@ -1,0 +1,35 @@
+﻿xmin,ymin,xmax,ymax,Object,predicted_label
+53,87,315,130,"S.HH, HOTOR ( SUHGAL Rengit",other
+130,56,192,87,tan,other
+195,42,275,97,chay,other
+281,57,345,94,yee,other
+327,89,413,130,"SDK, BHD ,",company
+76,146,146,169,"No, 343 ,",other
+154,145,392,172,"Jalan Kurau, Sungai Rengit",other
+172,124,250,147,801580-7,other
+94,190,374,213,Tel : 07-8263254 Fax: 07-8266888,other
+128,167,268,194,81620 Pengerang,other
+279,171,329,190,Johor,company
+200,232,268,255,INVOICE,other
+14,298,108,323,ITEM/DESC .,other
+252,298,444,323,OTY U.PRICE RM(ToTAL),other
+14,342,56,365,4132,other
+22,364,188,387,CROCS  30oX17 TUBES,other
+304,342,356,365,20 .00,other
+392,342,444,365,20.00,other
+172,428,346,451,ROUNDING   ADJUSTMENT,other
+260,406,346,429,SUB   TOTAL,other
+393,409,443,428,20.00,other
+402,428,444,451,0.00,total
+244,450,344,473,GRAND TotaL,other
+304,472,348,495,CASH,other
+394,450,444,473,20.00,other
+394,472,444,495,20.00,other
+285,490,348,517,CHANGE,other
+405,495,443,514,0.00,other
+14,536,218,559,"23-01-2019 13;14:15 PM ,",date
+14,556,348,581,"TOKEH NO: 0, StATION Id: A1, PID: POS",other
+226,534,356,559,PRINT BY: root,other
+14,578,170,603,InvoICE NO: 22497,other
+14,622,188,647,Thanks Your Support,other
+295,618,394,672,2 u0,other
