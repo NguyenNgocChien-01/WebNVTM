@@ -12,112 +12,33 @@ from collections import defaultdict
 from tqdm.notebook import tqdm as tqdm_nb
 import json
 from datetime import datetime
-import csv
 from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score
 import time
 import re
 from django.conf import settings
 import uuid
+from src import logging_utils
+
+# Ghi log kết quả predict (chuẩn hóa)
 def write_evaluation_log(img_id, config, extracted_info, img_path, y_true, y_pred, type_run="predict", seed_value=42, search_already=False, status="Success", error_message=None, val_loss=0.0, processing_time=0.0):
     """
-    Hàm ghi log đã được dọn dẹp và sửa lỗi.
+    Hàm ghi log chuẩn hóa, sử dụng logging_utils.log_predict_results
     """
-    log_dir = os.path.join(config['output_folder'], "logs")
-    os.makedirs(log_dir, exist_ok=True)
-
     report = {}
-    recall = "0.0000"
-    val_acc, val_auc, val_mmc = 0.0, 0.0, 0.0
     cm = None
-    total_samples = 0
-
-    # 1. TÍNH TOÁN HIỆU SUẤT (CHỈ MỘT LẦN)
-    # ========================================
     if status == "Success" and len(y_true) > 0 and len(y_pred) > 0:
         target_names = config['labels']
         label_indices = list(range(len(target_names)))
-        
-        # ⭐ GỌI classification_report MỘT LẦN DUY NHẤT VỚI ĐẦY ĐỦ THAM SỐ
         report = classification_report(
             y_true, 
             y_pred, 
             target_names=target_names, 
-            labels=label_indices, # <-- Tham số quan trọng để sửa lỗi
+            labels=label_indices, 
             zero_division=0, 
             output_dict=True
         )
-        
-        recall = f"{report['macro avg']['recall']:.4f}"
-        val_acc = report['accuracy']
-
-        # Tính toán các chỉ số khác
-        cm = confusion_matrix(y_true, y_pred, labels=label_indices) # Thêm labels ở đây
-        total_samples = cm.sum()
-        
-        try:
-            y_true_one_hot = np.eye(len(target_names))[y_true]
-            y_score = np.eye(len(target_names))[y_pred]
-            val_auc = roc_auc_score(y_true_one_hot, y_score, multi_class='ovr', average='macro')
-        except Exception:
-            val_auc = 0.0
-        
-        val_mmc = np.mean(np.diag(cm)) / total_samples if total_samples > 0 else 0.0
-
-    # Xác định tên file log
-    company = extracted_info.get('COMPANY', 'unknown').replace(" ", "_").replace("&", "and").replace(".", "").replace(",", "")[:50]
-    log_path = os.path.join(log_dir, f"{company}_{recall}.csv")
-
-    # 2. CHUẨN BỊ DỮ LIỆU ĐỂ GHI RA FILE CSV
-    # ==========================================
-    rows = []
-    # ... (Phần này về cơ bản giữ nguyên, chỉ cần đảm bảo nó sử dụng các biến đã tính ở trên)
-    # Ví dụ cho phần Macro Avg:
-    if status == "Success" and report:
-        rows.append({
-            "Label": "Macro Avg",
-            "Precision": f"{report['macro avg']['precision']:.4f}",
-            "Recall": f"{report['macro avg']['recall']:.4f}",
-            "F1-Score": f"{report['macro avg']['f1-score']:.4f}",
-            "Val Acc": val_acc,
-            "Val AUC": val_auc,
-            "Val Loss": val_loss,
-            "Val MMC": val_mmc,
-            # ... các trường khác ...
-        })
-
-        # Performance Metrics cho từng nhãn
-        for i, label in enumerate(target_names):
-            true_pos = cm[i, i] if cm is not None and i < cm.shape[0] else 0
-            # ... (phần tính TN, FP, FN giữ nguyên) ...
-            false_pos = cm[:, i].sum() - true_pos if cm is not None else 0
-            false_neg = cm[i, :].sum() - true_pos if cm is not None else 0
-            true_neg = total_samples - (true_pos + false_pos + false_neg)
-
-            # ... (phần tính toán và append rows cho từng nhãn giữ nguyên) ...
-            rows.append({
-                "Label": label,
-                "Precision": f"{report[label]['precision']:.4f}",
-                # ...
-            })
-
-    else: # Trường hợp có lỗi
-        rows.append({
-            "Label": status,
-            "Precision": error_message,
-            # ... các trường khác để trống hoặc bằng 0 ...
-        })
-    
-    # ... (phần ghi Extracted Information giữ nguyên) ...
-
-    # 3. GHI FILE
-    # ===========
-    fieldnames = ["Label", "Precision", "Recall", "F1-Score", "Val Acc", "Val AUC", "Val Loss", "Val MMC", "TN", "FP", "FN", "TP", "Time", "Ep Stopped", "Index Fold", "Val Acc Avg", "SD Acc", "Val AUC Avg", "SD MMC", "Va MMC Avg"]
-    with open(log_path, 'w', encoding='utf-8', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(rows)
-    
-    print(f"✅ Đã lưu kết quả đánh giá tại: {log_path}")
+        cm = confusion_matrix(y_true, y_pred, labels=label_indices)
+    logging_utils.log_predict_results(config, report, cm, status=status, error_message=error_message)
 
 
 def load_inference_model(input_dim, config, device):

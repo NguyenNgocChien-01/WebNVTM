@@ -1,3 +1,4 @@
+
 import torch
 import torch.nn.functional as F
 from sklearn.utils.class_weight import compute_class_weight
@@ -6,58 +7,11 @@ import numpy as np
 import os
 import time
 import datetime
-import csv
 from src.config import CONFIG
-import json
-import psutil
-
 from src.model import InvoiceGCN
+from src import logging_utils
 
-# src/train.py
-import json
-import datetime
-import os
 
-def log_training_results(config, metrics, execution_time, dataset_stats):
-    """
-    Ghi toàn bộ thông tin vào một file JSON phẳng, không phân mục.
-    """
-    log_dir = "outputs/logs/training_sessions"
-    os.makedirs(log_dir, exist_ok=True)
-    
-    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    filename = f"session_{timestamp}_acc_{metrics.get('accuracy', 0):.4f}.json"
-    log_path = os.path.join(log_dir, filename)
-
-    # --- PHẦN THAY ĐỔI ---
-    # Bắt đầu với một dictionary rỗng
-    log_data = {}
-
-    # Gộp dictionary siêu tham số vào
-    log_data.update(config['model_params'])
-    
-    # Gộp dictionary thống kê dữ liệu
-    log_data.update(dataset_stats)
-
-    # Gộp dictionary kết quả cuối cùng
-    final_results = {
-        "epoch_stopped_at": metrics.get('epoch_stopped_at'),
-        "best_validation_loss": metrics.get('best_val_loss'),
-        "final_test_accuracy": metrics.get('accuracy'),
-        "execution_time_seconds": round(execution_time, 2),
-        "classification_report": metrics.get('classification_report'),
-        "normalized_confusion_matrix_text": str(metrics.get('normalized_cm').tolist()) # Lưu ma trận dưới dạng text
-    }
-    log_data.update(final_results)
-    
-
-    # --- KẾT THÚC PHẦN THAY ĐỔI ---
-
-    # Ghi vào file JSON với định dạng đẹp
-    with open(log_path, 'w', encoding='utf-8') as f:
-        json.dump(log_data, f, ensure_ascii=False, indent=4)
-
-    print(f"\n✅ Đã lưu log huấn luyện chi tiết (dạng phẳng) tại: {log_path}")
 
 
 def run_training_session(config, train_data, test_data, device):
@@ -153,14 +107,11 @@ def run_training_session(config, train_data, test_data, device):
     metrics_to_log = {
         'epoch_stopped_at': epoch,
         'best_val_loss': best_val_loss,
-        'final_train_loss': loss.item(),
-        'final_val_loss': F.nll_loss(final_out, (test_data.y - 1)).item(),
-        'final_accuracy': final_accuracy,
+        'accuracy': final_accuracy,
         'classification_report': final_report
     }
-    
-    # Gọi hàm ghi log
-    log_training_results(model_params, metrics_to_log, execution_time)
+    # Ghi log bằng logging_utils
+    logging_utils.log_train_results(CONFIG, metrics_to_log)
     
     # Lưu model tốt nhất
     save_path = config['model_save_path']

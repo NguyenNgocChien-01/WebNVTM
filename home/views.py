@@ -17,7 +17,8 @@ import pytesseract
 from src.config import CONFIG
 from src.data_processing import Grapher, load_data
 from src.model import InvoiceGCN
-from src.predict import load_inference_model, write_evaluation_log 
+from src.predict import load_inference_model, write_evaluation_log
+from src.logging_utils import ensure_log_dir, log_extraction_results
 from torch_geometric.data import Data
 import easyocr
 import re
@@ -409,6 +410,7 @@ def create_data_object(ocr_dataframe, image_object, file_id):
 def ocr_and_predict_view(request):
     context = {}
     if request.method == 'POST':
+        start_time = time.time()
         image_file = request.FILES.get("invoice_image")
         
         if not (image_file and MODEL):
@@ -474,14 +476,81 @@ def ocr_and_predict_view(request):
             os.makedirs(result_folder, exist_ok=True)
             cv2.imwrite(os.path.join(result_folder, result_filename), cv2.cvtColor(image_to_draw, cv2.COLOR_RGB2BGR))
             result_image_url = os.path.join(settings.MEDIA_URL, 'results', result_filename).replace("\\", "/")
+            
+            # Tính toán các thông số kỹ thuật và độ tin cậy
+            processing_time = time.time() - start_time
+            total_text = sum(len(v) for v in extracted_info.values())
+            total_labels = len([k for k, v in extracted_info.items() if v])
+            
+            # Tính toán độ tin cậy cho từng dự đoán
+            softmax_probs = torch.exp(out)
+            confidence_scores = softmax_probs.max(dim=1)[0].cpu().numpy()
+            
+            # Thống kê về độ tin cậy
+            mean_conf = float(np.mean(confidence_scores))
+            min_conf = float(np.min(confidence_scores))
+            max_conf = float(np.max(confidence_scores))
+            std_conf = float(np.std(confidence_scores))
+            
+            # Tính độ tin cậy cho từng loại nhãn
+            confidence_per_label = {}
+            label_distribution = {}
+            for label in CONFIG['labels']:
+                label_indices = np.where(df_with_features['predicted_label'] == label)[0]
+                if len(label_indices) > 0:
+                    label_confidence = float(np.mean(confidence_scores[label_indices]))
+                    confidence_per_label[label.upper()] = label_confidence
+                    label_distribution[label.upper()] = len(label_indices)
+            
+            # Tính tỷ lệ các nhãn hữu ích và không hữu ích
+            total_predictions = len(pred_indices)
+            other_count = len(np.where(df_with_features['predicted_label'] == 'other')[0])
+            other_ratio = other_count / total_predictions if total_predictions > 0 else 0
+            successful_extraction_ratio = 1 - other_ratio
+            
+            # Lưu log file với thông tin chi tiết hơn
+            stats = {
+                "processing_time": processing_time,
+                "total_text_detected": total_text,
+                "total_labels_predicted": total_labels,
+                
+                # Độ tin cậy tổng quát
+                "model_confidence": float(torch.max(torch.exp(out)).item()),
+                "val_loss": float(F.nll_loss(out, torch.tensor(pred_indices, device=DEVICE)).item()),
+                "mean_confidence": mean_conf,
+                "min_confidence": min_conf,
+                "max_confidence": max_conf,
+                "std_confidence": std_conf,
+                
+                # Thống kê chi tiết
+                "confidence_per_label": confidence_per_label,
+                "label_distribution": label_distribution,
+                "other_ratio": other_ratio,
+                "successful_extraction_ratio": successful_extraction_ratio
+            }
+            
+            log_path = ensure_log_dir()
+            log_filename = f"extraction_log_{timestamp}.csv"
+            log_filepath = os.path.join(log_path, log_filename)
+            
+            # Gọi hàm log
+            log_extraction_results(
+                img_id=unique_name,
+                extracted_info=formatted_info,
+                config=CONFIG,
+                stats=stats,
+                file_path=uploaded_file_path,
+                status="Success"
+            )
 
             # B6: Chuẩn bị dữ liệu để hiển thị
             results_for_template = [{'key': k, 'value': v, 'is_list': isinstance(v, list)} for k, v in formatted_info.items()]
             context['result_data'] = {
                 'extracted_text': results_for_template,
                 'annotated_image_url': result_image_url,
+                'processing_stats': stats  # Thêm thông số vào context
             }
-            messages.success(request, "Đã trích xuất và dự đoán thành công!")
+            messages.success(request, f"Đã trích xuất và dự đoán thành công! Log được lưu tại: {log_filepath}")
 
         except Exception as e:
             traceback.print_exc()

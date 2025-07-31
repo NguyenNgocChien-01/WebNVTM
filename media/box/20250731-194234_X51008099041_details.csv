@@ -1,0 +1,47 @@
+﻿xmin,ymin,xmax,ymax,Object,predicted_label
+236,260,568,307,RESTORAN   wan ShenG,other
+289,302,498,351,002043319-W,other
+112,386,694,442,"Seksyen 9, Bandar   Mahkota Cheras",other
+150,348,248,397,"No.2 ,",other
+256,348,654,399,"JaIan   Temenggung  19/9 ,",other
+182,473,622,524,GST REG No; 001335787520,other
+202,432,428,479,43200 Cheras_,other
+448,432,605,486,Selangor,other
+186,560,301,610,Tax,other
+328,558,582,612,Invoice,other
+43,689,127,732,Date,other
+45,647,163,690,Inv No,other
+177,665,191,686,6,other
+204,688,552,735,30-06-2018 22:16:06,date
+205,647,335,690,1219461,other
+360,646,658,693,Cashier :  Thandar,other
+42,773,252,823,DJescr ipt ion,other
+306,776,374,825,Oty,other
+430,776,568,825,U.price,other
+589,776,762,823,Tota/   TAX,other
+43,859,125,902,Coke,other
+40,940,216,991,Soya Bean,other
+293,907,357,944,1 x,other
+449,903,531,946,"2,10",other
+609,903,759,946,"2,10 ZRL",other
+291,989,356,1031,1 x,other
+451,989,531,1032,"2,10",other
+611,989,759,1032,"2,10 ZRL",other
+42,1070,263,1114,Tota) OTY; 2,other
+42,1108,440,1162,Tota]   (Excluding GST) :,other
+43,1155,139,1198,Tota],other
+166,1152,495,1204,IncIusive of GST) ;,other
+681,1119,761,1158,4.20,other
+46,1196,254,1243,TOTAL :,other
+681,1159,761,1200,"4,20",total
+611,1201,657,1242,4,other
+679,1201,757,1244,20,other
+40,1280,126,1327,CASH,other
+681,1285,761,1328,"4,20",other
+42,1406,250,1457,GST   Summary,other
+43,1451,107,1494,ZRL,other
+271,1453,333,1496,08 ),other
+394,1410,582,1457,Amount (RM),other
+503,1455,583,1496,"4,20",other
+628,1410,758,1457,Tax (RM),other
+677,1455,759,1498,0.00,other

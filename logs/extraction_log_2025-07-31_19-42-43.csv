@@ -1,0 +1,2 @@
+timestamp,image_id,image_path,status,error_message,model_type,hidden_dims,dropout_rate,learning_rate,processing_time,total_text_detected,total_labels_predicted,company_name,tax_id,address,date,total_amount,items,model_confidence,validation_loss
+2025-07-31T19:42:43.324094,20250731-194234_X51008099041,C:\Users\ROG ZEPHYRUS\NghiepVu\WebNVTM\media\uploads\20250731-194234_X51008099041.jpg,Success,,GCN,[],0.5,0.001,8.941824674606323,2,2,,,,30-06-2018 22:16:06,"4,20",,1.0,0.0008518989197909832
