@@ -1,10 +1,11 @@
 # KIE Invoice Extraction
 
-Du an cua ban la mot he thong `Django + OCR + Graph Neural Network` dung de trich xuat thong tin tu hoa don/chung tu. Ung dung cho phep tai anh len de du doan theo thoi gian thuc, dong thoi ho tro chay thu tren tap du lieu test da xu ly san.
-Bao cao: [https://drive.google.com/drive/u/0/folders/1ZhYQm2iUe5e2tNM-z4fLEkglrPAOzDWg](Tại đây)
-## Muc tieu
+Dự án của bạn là một hệ thống `Django + OCR + Graph Neural Network` dùng để trích xuất thông tin từ hóa đơn/chứng từ. Ứng dụng cho phép tải ảnh lên để dự đoán theo thời gian thực, đồng thời hỗ trợ chạy thử trên tập dữ liệu test đã xử lý sẵn.
+Báo cáo: [Tại đây](https://drive.google.com/drive/u/0/folders/1ZhYQm2iUe5e2tNM-z4fLEkglrPAOzDWg)
 
-He thong nhan dien va gan nhan cho cac doan van ban tren hoa don thanh 6 nhom:
+## Mục tiêu
+
+Hệ thống nhận diện và gán nhãn cho các đoạn văn bản trên hóa đơn thành 6 nhóm:
 
 - `company`
 - `address`
@@ -13,164 +14,70 @@ He thong nhan dien va gan nhan cho cac doan van ban tren hoa don thanh 6 nhom:
 - `item`
 - `other`
 
-Ket qua cuoi cung gom:
+Kết quả cuối cùng gồm:
 
-- anh da ve bounding box va nhan du doan
-- thong tin trich xuat theo tung truong
-- file log theo lan chay
-- file CSV/JSON ket qua phuc vu kiem tra
+- ảnh đã vẽ bounding box và nhãn dự đoán
+- thông tin trích xuất theo từng trường
+- file log theo lần chạy
+- file CSV/JSON kết quả phục vụ kiểm tra
 
-## Pipeline xu ly
+## Pipeline xử lý
 
-Project dang ket hop 3 lop xu ly chinh:
+Project đang kết hợp 3 lớp xử lý chính:
 
-1. `EasyOCR` de doc text va toa do tu anh.
-2. `SentenceTransformer` de tao embedding ngu nghia cho tung text box.
-3. `InvoiceGCN` trong `torch-geometric` de phan loai moi node tren do thi chung tu.
+1. `EasyOCR` để đọc text và tọa độ từ ảnh.
+2. `SentenceTransformer` để tạo embedding ngữ nghĩa cho từng text box.
+3. `InvoiceGCN` trong `torch-geometric` để phân loại mỗi node trên đồ thị chứng từ.
 
-Ngoai mo hinh GCN, project con ap dung them mot so rule-based heuristic de sua nhan cho:
+Ngoài mô hình GCN, project còn áp dụng thêm một số rule-based heuristic để sửa nhãn cho:
 
-- ngay thang
-- tong tien
-- danh sach mat hang
+- ngày tháng
+- tổng tiền
+- danh sách mặt hàng
 
-## Chuc nang hien co
+## Chức năng hiện có
 
-### 1. Chay voi du lieu test
+### 1. Chạy với dữ liệu test
 
-Trang `/test/` cho phep nhap `image_index` de chay du doan tren tap `test_data.dataset` da duoc xu ly truoc.
+Trang `/test/` cho phép nhập `image_index` để chạy dự đoán trên tập `test_data.dataset` đã được xử lý trước.
 
-Luong nay dung cho:
+Luồng này dùng cho:
 
-- kiem tra nhanh model hien tai
-- xem anh da annotate
-- doi chieu thong tin trich xuat voi du lieu mau
+- kiểm tra nhanh model hiện tại
+- xem ảnh đã annotate
+- đối chiếu thông tin trích xuất với dữ liệu mẫu
 
-### 2. Chay voi anh thuc te
+### 2. Chạy với ảnh thực tế
 
-Trang `/real/` cho phep upload anh hoa don de:
+Trang `/real/` cho phép upload ảnh hóa đơn để:
 
-- OCR anh
-- tao graph dac trung tu ket qua OCR
-- suy luan bang model da huan luyen
-- ap dung rule-based post-processing
-- luu anh ket qua vao `media/results`
-- luu chi tiet box vao `media/box`
-- ghi log thong ke vao `logs`
+- OCR ảnh
+- tạo graph đặc trưng từ kết quả OCR
+- suy luận bằng model đã huấn luyện
+- áp dụng rule-based post-processing
+- lưu ảnh kết quả vào `media/results`
+- lưu chi tiết box vào `media/box`
+- ghi log thống kê vào `logs`
 
-## Cau truc thu muc chinh
+## Cấu trúc thư mục chính
 
 ```text
 kie/
-|-- home/                 # Django app chua views va routes
-|-- kie/                  # Cau hinh project Django
+|-- home/                 # Django app chứa views và routes
+|-- kie/                  # Cấu hình project Django
 |-- src/                  # Pipeline ML: config, data_processing, model, train, predict
-|-- templates/            # Giao dien web cho home, test, real
+|-- templates/            # Giao diện web cho home, test, real
 |-- assets/               # CSS/JS/static files
 |-- data/
-|   |-- raw/              # Anh, box OCR, labels goc
+|   |-- raw/              # Ảnh, box OCR, labels gốc
 |   `-- processed/        # train_data.dataset, test_data.dataset
 |-- outputs/
-|   |-- models/           # Model .pth da huan luyen
-|   `-- results/          # JSON/anh ket qua offline
+|   |-- models/           # Model .pth đã huấn luyện
+|   `-- results/          # JSON/ảnh kết quả offline
 |-- media/
-|   |-- uploads/          # Anh upload tu web
-|   |-- results/          # Anh annotate sinh ra tren web
-|   `-- box/              # CSV chi tiet tung bounding box
-|-- logs/                 # Log trich xuat / train / predict
+|   |-- uploads/          # Ảnh upload từ web
+|   |-- results/          # Ảnh annotate sinh ra trên web
+|   `-- box/              # CSV chi tiết từng bounding box
+|-- logs/                 # Log trích xuất / train / predict
 |-- requirements.txt
 `-- manage.py
-```
-
-## Thanh phan quan trong
-
-- `home/views.py`: xu ly upload anh, OCR, suy luan, hien thi ket qua.
-- `src/data_processing.py`: tao do thi tu OCR boxes, tinh feature hinh hoc va text.
-- `src/model.py`: dinh nghia mo hinh `InvoiceGCN`/`ChebConv`.
-- `src/train.py`: huan luyen model, early stopping, ghi log.
-- `src/predict.py`: tai model, suy luan, xuat JSON/anh ket qua.
-- `src/config.py`: cau hinh du lieu, labels, tham so model.
-
-## Cau hinh hien tai
-
-Theo `src/config.py`, project dang dung:
-
-- labels: `company`, `address`, `date`, `total`, `item`, `other`
-- model save path: `outputs/models/kie_gcn_model_best.pth`
-- processed data: `data/processed/train_data.dataset`, `data/processed/test_data.dataset`
-- hidden dims: `[512, 256, 128]`
-- dropout: `0.3`
-- epochs cau hinh: `2000`
-- chebnet: `True`
-- `K = 3`
-
-## Cach chay
-
-### 1. Cai thu vien
-
-```bash
-pip install -r requirements.txt
-```
-
-Luu y: code hien tai con import `sentence_transformers`, nhung goi nay chua co trong `requirements.txt`. Neu chay web/inference that bai vi thieu thu vien, can cai them:
-
-```bash
-pip install sentence-transformers
-```
-
-Neu dung `pytesseract`, may cung can cai Tesseract OCR ben ngoai he thong.
-
-### 2. Chay Django
-
-```bash
-python manage.py runserver
-```
-
-Sau do truy cap:
-
-- `http://127.0.0.1:8000/`
-- `http://127.0.0.1:8000/test/`
-- `http://127.0.0.1:8000/real/`
-
-## Dieu kien de project hoat dong dung
-
-Ban can dam bao da co san:
-
-- model tai `outputs/models/kie_gcn_model_best.pth`
-- dataset da xu ly trong `data/processed`
-- du lieu goc trong `data/raw`
-
-Neu thieu model hoac dataset, cac man hinh suy luan se khong load duoc day du.
-
-## Dau ra sinh ra sau khi chay
-
-### Tu web upload anh
-
-- Anh upload: `media/uploads/`
-- Anh da annotate: `media/results/`
-- CSV box + nhan du doan: `media/box/`
-- Log trich xuat: `logs/`
-
-### Tu inference/offline
-
-- JSON ket qua: `outputs/results/`
-- Anh annotate: `outputs/results/`
-- Model tot nhat: `outputs/models/`
-
-## Diem manh cua du an
-
-- Ket hop OCR, embedding ngu nghia va graph learning.
-- Ho tro ca web demo va pipeline ML.
-- Co luu log va file trung gian de debug.
-- Co them rule-based post-processing de cai thien mot so truong quan trong.
-
-## Han che hien tai
-
-- `requirements.txt` chua day du dependency thuc te.
-- Trong repo chua co huong dan dong goi/deploy production.
-- Logic tai model trong `home/views.py` con trung lap.
-- README cu chua phan anh dung cau truc va cach chay hien tai.
-
-## Tom tat ngan
-
-Day la mot do an trich xuat thong tin hoa don bang KIE, trong do Django cung cap giao dien thao tac, EasyOCR + SentenceTransformer + GCN dam nhiem suy luan, va ket qua duoc xuat ra thanh text co cau truc cung anh da gan nhan de kiem tra truc quan.
