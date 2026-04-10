@@ -1,7 +1,7 @@
 # KIE Invoice Extraction
 
 Du an cua ban la mot he thong `Django + OCR + Graph Neural Network` dung de trich xuat thong tin tu hoa don/chung tu. Ung dung cho phep tai anh len de du doan theo thoi gian thuc, dong thoi ho tro chay thu tren tap du lieu test da xu ly san.
-
+Bao cao: [https://drive.google.com/drive/u/0/folders/1ZhYQm2iUe5e2tNM-z4fLEkglrPAOzDWg](Tại đây)
 ## Muc tieu
 
 He thong nhan dien va gan nhan cho cac doan van ban tren hoa don thanh 6 nhom:
