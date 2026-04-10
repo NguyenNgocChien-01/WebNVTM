@@ -16,7 +16,7 @@ from src import logging_utils
 
 def run_training_session(config, train_data, test_data, device):
     """
-    Phiên bản huấn luyện nâng cao: theo dõi, dừng sớm và ghi log chi tiết.
+    Phiên bản huấn luyện nâng cao: theo dõi, dừng sớm và ghi log chi tiết. 
     """
     start_time = time.time()
     
