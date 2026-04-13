@@ -1,7 +1,7 @@
 # KIE Invoice Extraction
 
 Dự án của này là một hệ thống `Django + OCR + Graph Neural Network` dùng để trích xuất thông tin từ hóa đơn/chứng từ. Ứng dụng cho phép tải ảnh lên để dự đoán theo thời gian thực, đồng thời hỗ trợ chạy thử trên tập dữ liệu test đã xử lý sẵn.
-Báo cáo: [Tại đây]([https://drive.google.com/drive/u/0/folders/1ZhYQm2iUe5e2tNM-z4fLEkglrPAOzDWg](https://drive.google.com/file/d/1S3e0TNrxIuMnMEU0tFkAFsZ35YM5J2au/view?usp=drive_link))
+Báo cáo: [Tại đây](https://drive.google.com/drive/u/0/folders/1ZhYQm2iUe5e2tNM-z4fLEkglrPAOzDWg)
 
 ## Mục tiêu
 
